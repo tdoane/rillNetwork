@@ -1,14 +1,6 @@
 import numpy as np
 import pdb
-
 import matplotlib.pyplot as plt
-from matplotlib.pyplot import cm
-from matplotlib import rc
-from matplotlib import rcParams
-rc('text', usetex = True)
-rcParams['font.size']=18
-rcParams['font.sans-serif'] = "Comic Sans MS"
-rcParams['font.family']='sans-serif'
 
 def aDist(j, a):
     alpha = np.sqrt(np.pi)/(3*np.sqrt(2))
@@ -41,14 +33,14 @@ def aDist(j, a):
                 invGauss = np.sqrt(lam/(2*np.pi*a**3))*np.exp(-lam*(a-U)**2/(2*U**2*a))
             jointDist[K,:] = (1 - j**(-1/2))*fl[K]*invGauss
             K+=1
-            #pdb.set_trace()
+
         fA = np.sum(jointDist, axis = 0) + j**(-1/2)*invGauss2
         Fa = np.cumsum(fA)*(a[1]-a[0])
         totA[i-1,:] = fA
 
     fArea = np.sum(totA, axis=0)/j
     Farea = np.cumsum(fArea)
-    #pdb.set_trace()
+
     return(fArea, Farea, fA, Fa)
 
 def inverseSample(F, samp, a):
@@ -60,7 +52,6 @@ def inverseSample(F, samp, a):
 
 numRills = 100
 L = np.arange(10,110,10)
-#color=iter(cm.gray(np.linspace(0,1,3/2*len(L))))
 
 dl = 1.
 r = 0.5
@@ -158,9 +149,7 @@ for i in l0:
     I+=1
 
     W+=1
-    #print(w)
 
-#pdb.set_trace()
 fig, ax1 = plt.subplots()
 
 ax1.plot(l0, concMat, 'dk', label = '$c$')
@@ -171,34 +160,8 @@ ax2.plot(gamma, tauMat, '+k', label = '$\\tau$')
 ax2.plot(gamma, omegaMat, 'ok', label = '$\\omega$')
 ax2.set_xlabel('$\eta$ in $D_{s} \propto \\tau^{\eta}, \\omega^{\eta}$')
 plt.grid()
-#ax1.set_yscale('log')
-#ax2.set_yscale('log')
-#ax1.set_xscale('log')
-#ax2.set_xscale('log')
 plt.legend()
 
-
-#X1, Y1 = np.meshgrid(gamma, m)
-#X2, Y2 = np.meshgrid(l0, m)
-
-#pdb.set_trace()
-
-#levels = np.arange(1.0, 10.0, 0.25)
-#plt.figure()
-
-#CS = plt.contourf(Y2, X2, concMat, levels)
-#plt.clabel(CS, inline=1, fontsize=12)
-#plt.colorbar()
-
-#plt.figure()
-#CS = plt.contourf(Y1, X1, tauMat, levels)
-#plt.clabel(CS, inline=1, fontsize = 12)
-#plt.colorbar()
-
-#plt.figure()
-#CS = plt.contourf(Y1, X1, omegaMat, levels)
-#plt.clabel(CS, inline=1, fontsize=12)
-#plt.colorbar()
 
 plt.show(block = False)
 pdb.set_trace()
