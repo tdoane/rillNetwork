@@ -3,14 +3,10 @@ import matplotlib.pyplot as plt
 from scipy.sparse import coo_matrix, csr_matrix, lil_matrix, linalg
 import pdb
 
-from matplotlib import rc
-from matplotlib import rcParams
-#
-#rcParams['font.size']=18
-#rcParams['font.sans-serif'] = "Comic Sans MS"
-#rcParams['font.family']='sans-serif'
-
 def Scheidegger(lY, lX, interRill, ang):
+    #lY and lX are domain sizes
+    #interRill is the number of units between rills
+    #ang is the horizontal slope of rills (rise of run), should be less than one
     import numpy as np
     mask = np.zeros((lY,lX)) #Initialize mask
     add = np.array([0, 1])
@@ -68,6 +64,7 @@ def Scheidegger(lY, lX, interRill, ang):
 def topoMake(mask, T, slp,dx):
     lY, lX = np.shape(mask)
 
+    #PARAMETERS FOR LINEAR DIFFUSION
     D = 0.0001
     U = 0.1
     dt =0.01*(dx**2.0)/D
@@ -79,20 +76,24 @@ def topoMake(mask, T, slp,dx):
     z = np.ones((lY,lX))
     ind = np.arange(0,lY*lX)
 
+    #IDENTIFY CHANNEL CELLS
     diri = 1 - mask
     diri = np.ravel(diri, 'F')
 
+    #BOUNDARY CONDITIONS
     bound = np.ones_like(z)
     #bound[0,:] = 2
     #bound[-1,:] = 3
     bound = np.ravel(bound, 'F')
 
+    #GENERATE SPARSE MATRICES
     diagVals = (D*dt/(dx**2.0))*np.ones((lY*lX))
     diagValsU1 = np.copy(diagVals)
     diagValsU2 = np.copy(diagVals)
     diagValsL1 = np.copy(diagVals)
     diagValsL2 = np.copy(diagVals)
 
+    #APPLY BOUNDARY CONDITIONS ON SIDES IF DESIRED
     #diagValsU1[bound==2] = 0#2.0*D*dt/(dx**2.0)
     #diagValsL1[bound==2] = 2.0*D*dt/(dx**2.0)
     #diagValsU1[bound==3] = 2.0*D*dt/(dx**2.0)
@@ -105,6 +106,7 @@ def topoMake(mask, T, slp,dx):
     bound[-1,:] = 3
     bound = np.ravel(bound, 'F')
 
+    #PERIODIC BOUNDARY CONDITIONS
     indAdj3 = np.zeros_like(bound)
     indAdj2 = np.zeros_like(bound)
     indAdj3[bound==3] = int(lY-1)
@@ -124,6 +126,7 @@ def topoMake(mask, T, slp,dx):
     diagValsU2[diri==0.0] = 0.0
     diagValsL2[diri==0.0] = 0.0
 
+    #CONSTRUCT SPARSE MATRICES
     rows = np.concatenate((ind, ind[:-1], ind[1:], ind[:-lY], ind[lY:]))
     cols = np.concatenate((ind, ind[1:]+indAdj2[1:], ind[:-1]+indAdj3[:-1], ind[lY:], ind[:-lY]))
 
@@ -135,35 +138,33 @@ def topoMake(mask, T, slp,dx):
 
     z = z.ravel('F')
     uplift = U*np.ones_like(z)*dt
-    #uplift[bound==0] = 0.0
     uplift[diri==0.0] = 0.0
-    #z+=uplift
-    #pdb.set_trace()
+
+    #PERFORM LINEAR DIFFUSION
     while t<T:
         z = H*z+uplift
         t = t+1
     z = z.reshape((lY, lX), order = 'F')
 
-    #pdb.set_trace()
+    #IMPOSE BACKGROUND SLOPE
     z = z - slp*X
 
     return(z)
 def hydroCorrect(z):
+    #FILL IN INTERNALLY DRAINING PORTIONS
     fillIncrement = 0.001
     lY, lX = np.shape(z)
     slope = slopeSimple(z)
     zVec = z.ravel('F')
-    #sVec = slope.ravel('C')
+
     k = 0
     while any(slope.ravel()<=0.000):
         ind = np.asarray(np.where(slope<=0.000))
         indJ = ind[1]
         indI = ind[0]
         num = len(indI)
-        #indJ = np.floor(ind/lY).astype('int')
-        #indI = np.mod(ind,lY)
+
         print(len(indI))
-        #zMin = z[indI, indJ]
         n = 0
         while n<num:
             i, j = indI[n], indJ[n]
@@ -177,10 +178,6 @@ def hydroCorrect(z):
             n+=1
             print(z[i,j], 'New Round')
 
-
-
-        #zVec[sVec==0]+=fillIncrement
-        #zTemp = zVec.reshape((lY, lX), order = 'F')
         slope= slopeSimple(z)
         sVec = slope.ravel('C')
         k+=1
@@ -191,6 +188,7 @@ def hydroCorrect(z):
     z = zVec.reshape((lY, lX), order = 'F')
     return(z)
 def slopeSimple(z):
+    #Calculate slope cell by cell to avoid making sparse matrices that are too large
     lY, lX = np.shape(z)
     y = np.arange(0, lY)
     x = np.arange(0, lX)
@@ -510,7 +508,7 @@ def flowRout(z, runoff, nIter, dx):
     slope = np.zeros_like(z)
     while k0<nIter:
         flow = np.ones_like(z)*runoff*dx**2
-        area = np.ones_like(z)
+        area = np.ones_like(z)*dx**2
 
         argZ = np.flip(np.argsort(z.ravel('F')))
         for k in argZ:
@@ -551,13 +549,12 @@ def flowRout(z, runoff, nIter, dx):
         if any(depthTot.ravel()<0):
             pdb.set_trace()
 
-        #pdb.set_trace()
         err = (depthTot - depthOld)/depthTot
         err = np.sum(err)/(lY*lX)
         depthOld = depthTot
         k0+=1
         print(err)
-        #pdb.set_trace()
+
     flow = depthTot**(5./3)*delta*np.sqrt(slope)/(manningsN)
     return(depthTot, flow, area)
 def nanCorrect(z):
@@ -570,19 +567,19 @@ def nanCorrect(z):
         z[ind[0][i], ind[1][i]] = aveZ
     return(z)
 
+
+#Either load topography in or generate synthetic topography
 z = np.load('zHydroCorr.npy')
 z = nanCorrect(z)
 z=z[100:600,:]
-#lY, lX = 1100, 500
 dx = 0.02
+#lY, lX = 1100, 500
 #mask = Scheidegger(int(lY), int(lX), 10, 0.66)
 #z = topoMake(mask, 1000, 1.0, dx)
 #mask = np.array(mask, dtype = 'bool')
 #z[mask]-=0.03
 
-runoff = 5/(100*3600)
-
+runoff = 5/(100*3600) #runoff in cm per second
 depth, flow, area = flowRout(z, runoff, 50, dx)
-
 
 pdb.set_trace()
